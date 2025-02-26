@@ -20,4 +20,5 @@ type Request struct {
 	Src_key string      `json:"src_key"`
 	Dst_key string      `json:"dst_key"`
 	UID     string      `json:"uid"`
+	Nonce   string      `json:"nonce"`
 }

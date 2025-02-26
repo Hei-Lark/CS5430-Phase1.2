@@ -11,4 +11,5 @@ type Response struct {
 	Status Code        `json:"status"`
 	Val    interface{} `json:"val"`
 	UID    string      `json:"uid"`
+	Nonce  string      `json:"nonce"`
 }
