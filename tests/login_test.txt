@@ -1,0 +1,31 @@
+{"uid":"fbs", "op":"LOGIN"}
+{"op":"LOGOUT"}
+
+{"key":"CS540","val":"sysSec","op":"CREATE"}
+{"key":"CS540","op":"READ"}
+
+{"uid":"fbs", "op":"LOGIN"}
+
+{"key":"CS540","val":"sysSec","op":"CREATE"}
+{"key":"PUBPOL","val":"secPol","op":"CREATE"}
+{"key":"CS4410","val":"OS","op":"CREATE"}
+{"key":"CS540","op":"READ"}
+{"key":"PUBPOL","op":"READ"}
+{"key":"CS4410","op":"READ"}
+
+{"key":"CS4410","val":"OpSys","op":"WRITE"}
+{"key":"CS4410","op":"READ"}
+
+{"src_key":"CS540","op":"COPY","dst_key":"PUBPOL"} 
+{"key":"CS540","op":"READ"}
+{"key":"PUBPOL","op":"READ"}
+
+{"key":"CS4410","op":"DELETE"}
+{"key":"CS4410","op":"READ"}
+
+{"uid":"sbf", "op":"LOGIN"}
+{"uid":"fbs", "op":"LOGIN"}
+
+{"op":"LOGOUT"}
+{"op":"LOGOUT"}
+
