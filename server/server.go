@@ -19,7 +19,8 @@ var kvstore map[string]interface{}
 var Requests chan NetworkData
 var Responses chan NetworkData
 
-var session string // part 2
+var session string    // part 2
+var sessionKey []byte // phase 1.2
 
 func init() {
 	privateKey = crypto_utils.NewPrivateKey()
@@ -152,10 +153,23 @@ func doCopy(request *Request, response *Response) {
 // u cannot be an empty string. If another session already
 // exists, then the status is FAIL.
 func doLogin(request *Request, response *Response) {
-	if session == "" {
-		session = request.UID
-		response.Status = OK
+	if session != "" {
+		response.Status = FAIL
 	}
+
+	// Extract Client Name
+
+	// Extract Kcs from {Kcs}Ks
+
+	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using Kcs
+
+	// Use Kds to verify sig
+
+	// Check sig details
+
+	// Store session details
+
+	// Build response
 }
 
 // Input: none. Returns a response.
@@ -164,5 +178,9 @@ func doLogin(request *Request, response *Response) {
 // logged in, then the status is FAIL.
 func doLogout(request *Request, response *Response) {
 	session = ""
+	// Reset session key
+	sessionKey = nil
+	session = ""
+	// Response = OK
 	response.Status = OK
 }

@@ -1,6 +1,6 @@
 module main
 
-go 1.23.0
+go 1.23
 
 require (
 	github.com/dmarkham/enumer v1.5.10

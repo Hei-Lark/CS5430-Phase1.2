@@ -16,12 +16,33 @@ var Requests chan NetworkData
 var Responses chan NetworkData
 var uid string // part 2
 
+// added for 1.2
 var serverPublicKey *rsa.PublicKey
+var clientPrivKey *rsa.PrivateKey
+var clientPubKey *rsa.PublicKey
+var EncryptionSigningKey *rsa.PrivateKey
+var EncryptionVerificationKey *rsa.PublicKey
+var sessionKey []byte
 
 func init() {
 	name = uuid.NewString()
 	Requests = make(chan NetworkData)
 	Responses = make(chan NetworkData)
+
+	// Generate pub/priv key pair
+	clientPrivKey = crypto_utils.NewPrivateKey()
+	clientPubKey = &clientPrivKey.PublicKey
+
+	// Generate signing keys
+	EncryptionSigningKey = crypto_utils.NewPrivateKey()
+	EncryptionVerificationKey = crypto_utils.NewPrivateKey()
+
+	// Get server public key Ks
+	ObtainServerPublicKey()
+
+	// Generate session key Kcs
+	sessionKey = crypto_utils.NewSessionKey()
+
 }
 
 func ObtainServerPublicKey() {
@@ -42,7 +63,44 @@ func ProcessOp(request *Request) *Response {
 		case LOGIN:
 			if uid == "" {
 				uid = request.UID
+
+				// Encrypt Kcs with Ks
+				EncryptedKcs := crypto_utils.EncryptPK(sessionKey, serverPublicKey)
+
+				// Generate nonce
+				nonce := crypto_utils.RandomBytes(4)
+
+				// Create message bits
+				messageStruct := struct {
+					ClientName string
+					UID        string
+					Command    Operation
+					Kds        []byte
+					Nonce      []byte
+				}{
+					ClientName: name,
+					UID:        uid,
+					Command:    LOGIN,
+					Kds:        crypto_utils.PublicKeyToBytes(EncryptionVerificationKey),
+					Nonce:      nonce,
+				}
+				messageBits, _ := json.Marshal(messageStruct)
+
+				// Create signature
+				hashMessage := crypto_utils.Hash(messageBits)
+				signature := crypto_utils.Sign(hashMessage, EncryptionSigningKey)
+
+				// Encrypt message with Kcs
+				finalMsgNotEncrypted := append(messageBits, signature...)
+				finalMsgEncrypted := crypto_utils.EncryptSK(finalMsgNotEncrypted, sessionKey)
+
+				// Form request
+				request.ClientName = name
+				request.EncryptedKcs = EncryptedKcs
+				request.EncryptedMessage = finalMsgEncrypted
+
 				doOp(request, response)
+
 			} else {
 				request.UID = uid
 			}
