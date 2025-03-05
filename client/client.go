@@ -137,11 +137,49 @@ func ProcessOp(request *Request) *Response {
 				break
 			}
 
-			// TODO
+			// Generate nonce
+			nonce := crypto_utils.RandomBytes(4)
 
-			request.UID = uid
+			logoutMessageStruct := struct {
+				UID     string
+				Command Operation
+				Nonce   []byte
+			}{
+				UID:     uid,
+				Command: LOGOUT,
+				Nonce:   nonce,
+			}
+
+			messageBytes, _ := json.Marshal(logoutMessageStruct)
+
+			messageHash := crypto_utils.Hash(messageBytes)
+			signature := crypto_utils.Sign(messageHash, EncryptionSigningKey)
+
+			temp := struct {
+				Message   []byte
+				Signature []byte
+			}{
+				Message:   messageBytes,
+				Signature: signature,
+			}
+			messageAndSignature, _ := json.Marshal(temp)
+			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
+
+			finalStruct := struct {
+				FullEncryptedMessage []byte
+			}{
+				FullEncryptedMessage: messageAndSigEncrypted,
+			}
+
+			finalBytes, _ := json.Marshal(finalStruct)
+
+			request := &Request{
+				Val: finalBytes,
+				Op:  LOGOUT,
+				UID: uid,
+			}
+
 			doOp(request, response)
-			uid = ""
 
 		default:
 			// struct already default initialized to
@@ -206,6 +244,16 @@ func doOp(request *Request, response *Response) {
 		response.Status = FAIL
 		response.Val = "Failed to parse decrypted message into response."
 		return
+	}
+
+	// Clear Client Info
+	if response.Status == OK && request.Op == LOGOUT {
+		uid = ""                   // Clear the UID
+		sessionKey = nil           // Clear the session key
+		clientPrivKey = nil        // Clear the private client key
+		clientPubKey = nil         // Clear the public client key
+		EncryptionSigningKey = nil // Clear the encryption signing key
+		EncryptionVerificationKey = nil
 	}
 
 	response.Status = OK

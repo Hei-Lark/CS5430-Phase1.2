@@ -264,10 +264,106 @@ func doLogin(request *Request, response *Response) {
 // session is returned to empty string. If the client is not
 // logged in, then the status is FAIL.
 func doLogout(request *Request, response *Response) {
-	session = ""
-	// Reset session key
-	sessionKey = nil
-	session = ""
-	// Response = OK
-	response.Status = OK
+
+	if session == "" {
+		response.Status = FAIL
+		response.Val = "No user is logged in."
+		return
+	}
+
+	var messageAndSignature struct {
+		Message   []byte `json:"Message"`
+		Signature []byte `json:"Signature"`
+	}
+
+	encryptedRequestBytes, ok := request.Val.([]byte)
+	if !ok {
+		response.Status = FAIL
+		response.Val = "Invalid data format."
+		return
+	}
+
+	err := json.Unmarshal(encryptedRequestBytes, &messageAndSignature)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to parse request."
+		return
+	}
+
+	decryptedMessage, err := crypto_utils.DecryptSK(messageAndSignature.Message, sessionKey)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to decrypt message."
+		return
+	}
+
+	var message struct {
+		UID     string    `json:"UID"`
+		Command Operation `json:"Command"`
+		Nonce   []byte    `json:"Nonce"`
+	}
+
+	err = json.Unmarshal(decryptedMessage, &message)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to parse decrypted message."
+		return
+	}
+
+	messageHash := crypto_utils.Hash(decryptedMessage)
+	validSignature := crypto_utils.Verify(messageAndSignature.Signature, messageHash, publicKey)
+	if !validSignature {
+		response.Status = FAIL
+		response.Val = "Signature verification failed."
+		return
+	}
+
+	if session == message.UID {
+		// clear client info
+		session = ""
+		sessionKey = nil
+
+		//response to send back to the client
+		responseStruct := struct {
+			UID       string    `json:"UID"`
+			Command   Operation `json:"Command"`
+			Nonce     []byte    `json:"Nonce"`
+			Signature []byte    `json:"Signature"`
+		}{
+			UID:     message.UID,
+			Command: LOGOUT,
+			Nonce:   message.Nonce,
+		}
+
+		responseBytes, err := json.Marshal(responseStruct)
+		if err != nil {
+			response.Status = FAIL
+			response.Val = "Failed to marshal response."
+			return
+		}
+
+		// Sign the response using the server's private key
+		responseSignature := crypto_utils.Sign(crypto_utils.Hash(responseBytes), privateKey)
+
+		// Attach the signature to the response
+		responseStruct.Signature = responseSignature
+
+		// response with the signature
+		responseWithSigBytes, err := json.Marshal(responseStruct)
+		if err != nil {
+			response.Status = FAIL
+			response.Val = "Failed to marshal signed response."
+			return
+		}
+
+		// Encrypt the response with the session key
+		encryptedResponse := crypto_utils.EncryptSK(responseWithSigBytes, sessionKey)
+
+		// Step 14: Set the response payload
+		response.Val = encryptedResponse
+		response.Status = OK
+	} else {
+		response.Status = FAIL
+		response.Val = "Invalid session or mismatched UID."
+	}
 }
