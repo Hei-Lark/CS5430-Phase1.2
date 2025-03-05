@@ -64,8 +64,6 @@ func process(input *os.File, output *os.File) {
 			return
 		}
 
-		response := client.ProcessOp(&request)
-
 		output.WriteString("Input: ")
 		err = enc.Encode(request)
 		if err != nil {
@@ -73,7 +71,7 @@ func process(input *os.File, output *os.File) {
 			return
 		}
 
-		// response := client.ProcessOp(&request)
+		response := client.ProcessOp(&request)
 
 		output.WriteString("Output: ")
 		err = enc.Encode(response)

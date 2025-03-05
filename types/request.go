@@ -19,5 +19,6 @@ type Request struct {
 	Op      Operation   `json:"op"`
 	Src_key string      `json:"src_key"`
 	Dst_key string      `json:"dst_key"`
+	DKey    string      `json:"dkey"`
 	UID     string      `json:"uid"`
 }
