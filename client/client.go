@@ -29,20 +29,6 @@ func init() {
 	Requests = make(chan NetworkData)
 	Responses = make(chan NetworkData)
 
-	// Generate pub/priv key pair
-	clientPrivKey = crypto_utils.NewPrivateKey()
-	clientPubKey = &clientPrivKey.PublicKey
-
-	// Generate signing keys
-	EncryptionSigningKey = crypto_utils.NewPrivateKey()
-	EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
-
-	// Get server public key Ks
-	ObtainServerPublicKey()
-
-	// Generate session key Kcs on startup
-	sessionKey = crypto_utils.NewSessionKey()
-
 }
 
 func ObtainServerPublicKey() {
@@ -61,6 +47,20 @@ func ProcessOp(request *Request) *Response {
 	if validateRequest(request) {
 		switch request.Op {
 		case LOGIN:
+
+			// Generate pub/priv key pair
+			clientPrivKey = crypto_utils.NewPrivateKey()
+			clientPubKey = &clientPrivKey.PublicKey
+
+			// Generate signing keys
+			EncryptionSigningKey = crypto_utils.NewPrivateKey()
+			EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
+
+			// Get server public key Ks
+			ObtainServerPublicKey()
+
+			// Generate session key Kcs on startup
+			sessionKey = crypto_utils.NewSessionKey()
 
 			if uid == "" {
 				uid = request.UID
@@ -128,7 +128,7 @@ func ProcessOp(request *Request) *Response {
 
 		case CREATE, DELETE, READ, WRITE, COPY:
 			request.UID = uid
-			doOp(request, response)
+			doOpS(request, response)
 		case LOGOUT:
 			if uid == "" {
 				// If no user is logged in, return an error or handle it
@@ -259,6 +259,13 @@ func doOp(request *Request, response *Response) {
 	response.Status = OK
 
 	//json.Unmarshal(sendAndReceive(NetworkData{Payload: requestBytes, Name: name}).Payload, &response)
+}
+
+func doOpS(request *Request, response *Response) {
+	requestBytes, _ := json.Marshal(request)
+	var res = sendAndReceive(NetworkData{Payload: crypto_utils.EncryptSK(requestBytes, sessionKey), Name: name})
+	var r, _ = crypto_utils.DecryptSK(res.Payload, sessionKey)
+	json.Unmarshal(r, &response)
 }
 
 func sendAndReceive(toSend NetworkData) NetworkData {
