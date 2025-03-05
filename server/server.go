@@ -198,8 +198,8 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
-	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using Kcs
-	decryptedMessage, err := crypto_utils.DecryptSK(encryptedRequest.FullEncryptedMessage, KSession)
+	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using ks
+	decryptedMessage, err := crypto_utils.DecryptPK(encryptedRequest.FullEncryptedMessage, privateKey)
 	if err != nil {
 		response.Status = FAIL
 		response.Val = "Failed to decrypt message."
@@ -209,6 +209,7 @@ func doLogin(request *Request, response *Response) {
 	var message struct {
 		UID       string    `json:"UID"`
 		Command   Operation `json:"Command"`
+		Kc        []byte    `json:"Kc"`
 		Kds       []byte    `json:"Kds"`
 		Nonce     []byte    `json:"Nonce"`
 		Signature []byte    `json:"Signature"`
@@ -236,8 +237,16 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
+	// Get Kc
+	KClientPublic, err := crypto_utils.BytesToPublicKey(message.Kc)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to convert Kds to public key."
+		return
+	}
+
 	// Store session details
-	sessionKey := KSession
+	sessionKey = KSession
 	session = message.UID
 
 	// Build response
@@ -267,8 +276,7 @@ func doLogin(request *Request, response *Response) {
 	tempBytes, _ := json.Marshal(temp)
 
 	// Encrypt with sessionKey
-	encryptedResponse := crypto_utils.EncryptSK(tempBytes, sessionKey)
-
+	encryptedResponse := crypto_utils.EncryptPK(tempBytes, KClientPublic)
 	response.Val = encryptedResponse
 	response.Status = OK
 }

@@ -78,11 +78,13 @@ func ProcessOp(request *Request) *Response {
 			messageStruct := struct {
 				UID     string
 				Command Operation
+				Kc      []byte
 				Kds     []byte
 				Nonce   []byte
 			}{
 				UID:     uid,
 				Command: LOGIN,
+				Kc:      crypto_utils.PublicKeyToBytes(clientPubKey),
 				Kds:     crypto_utils.PublicKeyToBytes(EncryptionVerificationKey),
 				Nonce:   nonce,
 			}
@@ -103,7 +105,7 @@ func ProcessOp(request *Request) *Response {
 
 			// Encrypted with Kcs
 			messageAndSignature, _ := json.Marshal(messageAndSignatureStruct)
-			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
+			messageAndSigEncrypted := crypto_utils.EncryptPK(messageAndSignature, serverPublicKey)
 
 			// Construct final message: {Kcs}Ks, {(message, sig)}Kcs
 			finalStruct := struct {
@@ -223,7 +225,7 @@ func doOp(request *Request, response *Response) {
 		return
 	}
 
-	decryptedMessage, err := crypto_utils.DecryptSK(encryptedResponse.Message, sessionKey)
+	decryptedMessage, err := crypto_utils.DecryptPK(encryptedResponse.Message, clientPrivKey)
 	if err != nil {
 		response.Status = FAIL
 		response.Val = "Failed to decrypt server response."
@@ -248,12 +250,12 @@ func doOp(request *Request, response *Response) {
 
 	// Clear Client Info
 	if response.Status == OK && request.Op == LOGOUT {
-		uid = ""                   // Clear the UID
-		sessionKey = nil           // Clear the session key
-		clientPrivKey = nil        // Clear the private client key
-		clientPubKey = nil         // Clear the public client key
-		EncryptionSigningKey = nil // Clear the encryption signing key
-		EncryptionVerificationKey = nil
+		uid = ""                                            // Clear the UID
+		sessionKey = nil                                    // Clear the session key
+		clientPrivKey = crypto_utils.NewPrivateKey()        // Clear the private client key
+		clientPubKey = &clientPrivKey.PublicKey             // Clear the public client key
+		EncryptionSigningKey = crypto_utils.NewPrivateKey() // Clear the encryption signing key
+		EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
 	}
 
 	response.Status = OK
