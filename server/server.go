@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
@@ -53,6 +52,16 @@ func receiveThenSend() {
 // the corresponding operation. Returns the serialized
 // response. This method is invoked by the network.
 func process(requestData NetworkData) NetworkData {
+
+	// func process(requestData NetworkData) NetworkData {
+	// 	var request Request
+	// 	json.Unmarshal(requestData.Payload, &request)
+	// 	var response Response
+	// 	doOp(&request, &response)
+	// 	responseBytes, _ := json.Marshal(response)
+	// 	return NetworkData{Payload: responseBytes, Name: name}
+	// }
+
 	var request Request
 	var response Response
 	var c, e = crypto_utils.DecryptSK(requestData.Payload, sKey)
@@ -67,11 +76,12 @@ func process(requestData NetworkData) NetworkData {
 		response.Status = FAIL
 	} else {
 		fmt.Println("decode ok")
-		doOp(&request, &response)
 		json.Unmarshal(c, &request)
+		doOp(&request, &response)
 	}
 	responseBytes, _ := json.Marshal(response)
-	fmt.Println("status is: " + string(response.Status))
+	fmt.Println("status is: ", (response.Status))
+	fmt.Println("response is: ", string(responseBytes))
 	return NetworkData{Payload: crypto_utils.EncryptSK(responseBytes, sKey), Name: name}
 }
 
@@ -85,7 +95,7 @@ func doOp(request *Request, response *Response) {
 	if request.Op == LOGIN { // len(sKey) == 0 &&
 		fmt.Println("server do login??")
 		doLogin(request, response)
-	} else if bytes.Equal([]byte(request.UID), sKey) && len(sKey) != 0 {
+	} else if len(sKey) != 0 {
 		switch request.Op {
 		case NOOP:
 			// NOTHING
@@ -102,9 +112,9 @@ func doOp(request *Request, response *Response) {
 		case LOGOUT:
 			doLogout(request, response)
 		default:
+			fmt.Println("server doOp failure")
 			// struct already default initialized to
 			// FAIL status
-			fmt.Println("server doOp failure")
 		}
 	}
 }
@@ -114,6 +124,7 @@ func doOp(request *Request, response *Response) {
 // Sets the value and metaval for key k in the
 // key-value store to value v and metavalue m.
 func doCreate(request *Request, response *Response) {
+	fmt.Println("server docreate")
 	if _, ok := kvstore[request.Key]; !ok {
 		kvstore[request.Key] = request.Val
 		response.Status = OK
@@ -134,6 +145,7 @@ func doDelete(request *Request, response *Response) {
 // associated with key. If key does not exist
 // then status is FAIL.
 func doReadVal(request *Request, response *Response) {
+	fmt.Println("server doread")
 	if v, ok := kvstore[request.Key]; ok {
 		response.Val = v
 		response.Status = OK
@@ -174,6 +186,7 @@ func doLogin(request *Request, response *Response) {
 	// if len(sKey) == 0 {
 	// 	response.Status = OK
 	// }
+	response.UID = request.UID
 	fmt.Println("server doLogin")
 	response.Status = OK
 }

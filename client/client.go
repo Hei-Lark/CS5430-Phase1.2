@@ -86,10 +86,17 @@ func validateRequest(r *Request) bool {
 	}
 }
 
+// requestBytes, _ := json.Marshal(request)
+// fmt.Println("client send n recieve")
+// var res = NetworkData{Payload: crypto_utils.EncryptSK(requestBytes, sKey), Name: name}.Payload
+// var r, _ = crypto_utils.DecryptSK(res, sKey)
+// json.Unmarshal(r, &response)
+
 func doOp(request *Request, response *Response) {
 	requestBytes, _ := json.Marshal(request)
-	fmt.Println("client send n recieve")
-	json.Unmarshal(sendAndReceive(NetworkData{Payload: crypto_utils.EncryptSK(requestBytes, sKey), Name: name}).Payload, &response)
+	var res = sendAndReceive(NetworkData{Payload: crypto_utils.EncryptSK(requestBytes, sKey), Name: name})
+	var r, _ = crypto_utils.DecryptSK(res.Payload, sKey)
+	json.Unmarshal(r, &response)
 }
 
 func sendAndReceive(toSend NetworkData) NetworkData {
