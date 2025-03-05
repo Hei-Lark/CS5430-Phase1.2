@@ -179,7 +179,7 @@ func ProcessOp(request *Request) *Response {
 				Signature: signature,
 			}
 			messageAndSignature, _ := json.Marshal(temp)
-			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
+			messageAndSigEncrypted := crypto_utils.EncryptPK(messageAndSignature, serverPublicKey)
 
 			finalStruct := struct {
 				FullEncryptedMessage []byte
