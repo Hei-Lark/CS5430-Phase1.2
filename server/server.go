@@ -159,8 +159,8 @@ func doLogin(request *Request, response *Response) {
 
 	// Extract Kcs from {Kcs}Ks
 	var encryptedRequest struct {
-		EncryptedKcs         []byte `json:"EncryptedKcs`
-		FullEncryptedMessage []byte `json:"FullEncryptedMessage"`
+		EncryptedKcs         []byte
+		FullEncryptedMessage []byte
 	}
 
 	encryptedBytes, ok := request.Val.([]byte)
