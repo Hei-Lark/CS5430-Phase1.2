@@ -1,0 +1,213 @@
+The tests are split into two files, copy_test.txt and login_text.txt, one corresponding
+to each part of phase0. 
+
+--copy_test.txt--
+To run this test, run the following command:
+
+> ./main -f tests/copy_test.txt
+
+I'll start by explaining my rationale for the copy function implemented under directions
+from part 1. All tests in copy_test.txt are done under a login session of 'fbs' but the
+login function itself is not tested, just used to be testable.
+
+>> {"uid":"fbs", "op":"LOGIN"}
+
+  Input: {"key":"","val":null,"op":"LOGIN","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+
+The testing starts by creating three new entries into the server and reading them. This
+should succeed fine because I didn't create the functions and it's not my job to test 
+them. These are what the inputs and outputs should look like:
+
+>> {"key":"CS540","val":"sysSec","op":"CREATE"}
+>> {"key":"PUBPOL","val":"secPol","op":"CREATE"}
+>> {"key":"CS4410","val":"OS","op":"CREATE"}
+
+>> {"key":"CS540","op":"READ"}
+>> {"key":"PUBPOL","op":"READ"}
+>> {"key":"CS4410","op":"READ"}
+
+  Input: {"key":"CS540","val":"sysSec","op":"CREATE","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"PUBPOL","val":"secPol","op":"CREATE","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS4410","val":"OS","op":"CREATE","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS540","val":null,"op":"READ","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"PUBPOL","val":null,"op":"READ","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"secPol","uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"READ","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"OS","uid":"fbs"}
+
+Then, the next part tests when the copy function should succeed and using the read
+function to make sure the values are correct。 The first command copies the value 
+of one existing key store to another existing key store. The second command tests
+copy a key store to itself-- it succeeds but basically does nothing:
+
+>> {"src_key":"CS540","op":"COPY","dst_key":"PUBPOL"} 
+>> {"src_key":"CS4410","op":"COPY","dst_key":"CS4410"} 
+
+>> {"key":"CS540","op":"READ"}
+>> {"key":"PUBPOL","op":"READ"}
+>> {"key":"CS4410","op":"READ"}
+
+  Input: {"key":"","val":null,"op":"COPY","src_key":"CS540","dst_key":"PUBPOL","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"","val":null,"op":"COPY","src_key":"CS4410","dst_key":"CS4410","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS540","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"PUBPOL","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"OS","uid":"fbs"}
+
+Finally, the last part tests when the copy function should fail. The first two commands
+have invalid source and destination keys, thus nothing to copy from or to. Once again, We
+read each key value to ensure nothing has changed here:
+
+>> {"src_key":"tada","op":"COPY","dst_key":"PUBPOL"} 
+>> {"src_key":"CS540","op":"COPY","dst_key":"tada"}
+>> {"src_key":"tree","op":"COPY","dst_key":"tada"}
+
+>> {"key":"CS540","op":"READ"}
+>> {"key":"PUBPOL","op":"READ"}
+>> {"key":"CS4410","op":"READ"}
+
+  Input: {"key":"","val":null,"op":"COPY","src_key":"tada","dst_key":"PUBPOL","dkey":"","uid":"fbs"}
+  Output: {"status":"FAIL","val":null,"uid":"fbs"}
+  Input: {"key":"","val":null,"op":"COPY","src_key":"CS540","dst_key":"tada","dkey":"","uid":"fbs"}
+  Output: {"status":"FAIL","val":null,"uid":"fbs"}
+  Input: {"key":"","val":null,"op":"COPY","src_key":"tree","dst_key":"tada","dkey":"","uid":"fbs"}
+  Output: {"status":"FAIL","val":null,"uid":"fbs"}
+  Input: {"key":"CS540","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"PUBPOL","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"OS","uid":"fbs"}
+  
+
+Of course, we log out at the end so nobody can use our top secret open session
+when we're not looking:
+
+>> {"op":"LOGOUT"}
+
+  Input: {"key":"","val":null,"op":"LOGOUT","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+
+
+--login_test.txt--
+To run this test, run the following command:
+
+> ./main -f tests/login_test.txt
+
+This sections tests the functionality of the LOGIN and LOGOUT function implemented
+in part 2 of phase0. 
+
+First, test simple login and logout commands which should work:
+
+>> {"uid":"fbs", "op":"LOGIN"}
+>> {"op":"LOGOUT"}
+
+  Input: {"key":"","val":null,"op":"LOGIN","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"","val":null,"op":"LOGOUT","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+
+
+We test that commands to read or write from the server cannot be executed without
+logging in, resulting in a failure response from the server with a blank uid response.
+
+>> {"key":"CS540","val":"sysSec","op":"CREATE"}
+>> {"key":"CS540","op":"READ"}
+
+  Input: {"key":"CS540","val":"sysSec","op":"CREATE","src_key":"","dst_key":"","dkey":"","uid":""}
+  Output: {"status":"FAIL","val":null,"uid":""}
+  Input: {"key":"CS540","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":""}
+  Output: {"status":"FAIL","val":null,"uid":""}
+
+Then we log in again to test that using other commands in the system was not compromised
+by the new state. We make sure that the request and response uid is the login session uid,
+even if not provided by the command itself. Only the last command should fail because we 
+are trying to read a deleted key. We see that the original functionalities of the original
+system remains.
+
+>> {"uid":"fbs", "op":"LOGIN"}
+
+>> {"key":"CS540","val":"sysSec","op":"CREATE"}
+>> {"key":"PUBPOL","val":"secPol","op":"CREATE"}
+>> {"key":"CS4410","val":"OS","op":"CREATE"}
+>> {"key":"CS540","op":"READ"}
+>> {"key":"PUBPOL","op":"READ"}
+>> {"key":"CS4410","op":"READ"}
+
+>> {"key":"CS4410","val":"OpSys","op":"WRITE"}
+>> {"key":"CS4410","op":"READ"}
+
+>> {"src_key":"CS540","op":"COPY","dst_key":"PUBPOL"} 
+>> {"key":"CS540","op":"READ"}
+>> {"key":"PUBPOL","op":"READ"}
+
+>> {"key":"CS4410","op":"DELETE"}
+>> {"key":"CS4410","op":"READ"}
+
+
+  Input: {"key":"","val":null,"op":"LOGIN","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS540","val":"sysSec","op":"CREATE","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"PUBPOL","val":"secPol","op":"CREATE","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS4410","val":"OS","op":"CREATE","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS540","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"PUBPOL","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"secPol","uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"OS","uid":"fbs"}
+  Input: {"key":"CS4410","val":"OpSys","op":"WRITE","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"OpSys","uid":"fbs"}
+  Input: {"key":"","val":null,"op":"COPY","src_key":"CS540","dst_key":"PUBPOL","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS540","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"PUBPOL","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":"sysSec","uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"DELETE","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"CS4410","val":null,"op":"READ","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"FAIL","val":null,"uid":"fbs"}
+
+
+Now we test a point of failure; using the LOGIN command while still in session. This
+should FAIL regardless of wether the login contains the UID of the current session or of
+a different session because only one session can exist at a time both on the server and
+on the client. Both should fail and the request and response uid should be that of the user
+in session.
+
+>> {"uid":"sbf", "op":"LOGIN"}
+>> {"uid":"fbs", "op":"LOGIN"}
+
+  Input: {"key":"","val":null,"op":"LOGIN","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"FAIL","val":null,"uid":"fbs"}
+  Input: {"key":"","val":null,"op":"LOGIN","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"FAIL","val":null,"uid":"fbs"}
+
+Then, the next point of failure is when the user attemps to logout while already logged
+out. The first logout should work as normal, but then the second logout tests
+to make sure it's not valid to log out when the client is not signed in in the first 
+place. The second logout request would no longer have an uid assigned to the request
+and response.
+
+>> {"op":"LOGOUT"}
+>> {"op":"LOGOUT"}
+
+  Input: {"key":"","val":null,"op":"LOGOUT","src_key":"","dst_key":"","dkey":"","uid":"fbs"}
+  Output: {"status":"OK","val":null,"uid":"fbs"}
+  Input: {"key":"","val":null,"op":"LOGOUT","src_key":"","dst_key":"","dkey":"","uid":""}
+  Output: {"status":"FAIL","val":null,"uid":""}

@@ -223,7 +223,7 @@ func doOp(request *Request, response *Response) {
 		return
 	}
 
-	decryptedMessage, err := crypto_utils.DecryptSK(encryptedResponse.Message, sessionKey)
+	decryptedMessage, err := crypto_utils.DecryptSK(encryptedResponse, sessionKey)
 	if err != nil {
 		response.Status = FAIL
 		response.Val = "Failed to decrypt server response."
