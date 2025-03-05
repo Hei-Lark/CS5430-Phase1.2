@@ -130,6 +130,14 @@ func ProcessOp(request *Request) *Response {
 			request.UID = uid
 			doOp(request, response)
 		case LOGOUT:
+			if uid == "" {
+				// If no user is logged in, return an error or handle it
+				response.Status = FAIL
+				response.Val = "No user is logged in."
+				break
+			}
+
+			// TODO
 
 			request.UID = uid
 			doOp(request, response)
@@ -163,7 +171,46 @@ func validateRequest(r *Request) bool {
 
 func doOp(request *Request, response *Response) {
 	requestBytes, _ := json.Marshal(request)
-	json.Unmarshal(sendAndReceive(NetworkData{Payload: requestBytes, Name: name}).Payload, &response)
+	serverResponse := sendAndReceive(NetworkData{Payload: requestBytes, Name: name})
+
+	var encryptedResponse struct {
+		Message   []byte
+		Signature []byte
+	}
+
+	err := json.Unmarshal(serverResponse.Payload, &encryptedResponse)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to parse server response."
+		return
+	}
+
+	decryptedMessage, err := crypto_utils.DecryptSK(encryptedResponse.Message, sessionKey)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to decrypt server response."
+		return
+	}
+
+	msgHash := crypto_utils.Hash(decryptedMessage)
+
+	validSignature := crypto_utils.Verify(encryptedResponse.Signature, msgHash, serverPublicKey)
+	if !validSignature {
+		response.Status = FAIL
+		response.Val = "Signature verification failed."
+		return
+	}
+
+	err = json.Unmarshal(decryptedMessage, response)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to parse decrypted message into response."
+		return
+	}
+
+	response.Status = OK
+
+	//json.Unmarshal(sendAndReceive(NetworkData{Payload: requestBytes, Name: name}).Payload, &response)
 }
 
 func sendAndReceive(toSend NetworkData) NetworkData {

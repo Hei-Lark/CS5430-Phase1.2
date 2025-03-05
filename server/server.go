@@ -157,19 +157,106 @@ func doLogin(request *Request, response *Response) {
 		response.Status = FAIL
 	}
 
-	// Extract Client Name
-
 	// Extract Kcs from {Kcs}Ks
+	var encryptedRequest struct {
+		EncryptedKcs         []byte `json:"EncryptedKcs`
+		FullEncryptedMessage []byte `json:"FullEncryptedMessage"`
+	}
+
+	encryptedBytes, ok := request.Val.([]byte)
+	if !ok {
+		response.Status = FAIL
+		response.Val = "Invalid data format."
+		return
+	}
+
+	err := json.Unmarshal(encryptedBytes, &encryptedRequest)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to parse request."
+		return
+	}
+
+	KSession, err := crypto_utils.DecryptPK(encryptedRequest.EncryptedKcs, privateKey)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to decrypt session key."
+		return
+	}
 
 	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using Kcs
+	decryptedMessage, err := crypto_utils.DecryptSK(encryptedRequest.FullEncryptedMessage, KSession)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to decrypt message."
+		return
+	}
 
-	// Use Kds to verify sig
+	var message struct {
+		UID       string    `json:"UID"`
+		Command   Operation `json:"Command"`
+		Kds       []byte    `json:"Kds"`
+		Nonce     []byte    `json:"Nonce"`
+		Signature []byte    `json:"Signature"`
+	}
+	err = json.Unmarshal(decryptedMessage, &message)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to parse decrypted message."
+		return
+	}
 
-	// Check sig details
+	// Use Kds to verify sig & check sig details
+	verificationKey, err := crypto_utils.BytesToPublicKey(message.Kds)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "Failed to convert Kds to public key."
+		return
+	}
+
+	hashMessage := crypto_utils.Hash(decryptedMessage)
+	validSignature := crypto_utils.Verify(message.Signature, hashMessage, verificationKey)
+	if !validSignature {
+		response.Status = FAIL
+		response.Val = "Signature verification failed."
+		return
+	}
 
 	// Store session details
+	sessionKey := KSession
+	session = message.UID
 
 	// Build response
+	responseStruct := struct {
+		UID     string
+		Command Operation
+		Nonce   []byte
+	}{
+		UID:     request.UID,
+		Command: LOGIN,
+		Nonce:   message.Nonce,
+	}
+
+	responseBits, _ := json.Marshal(responseStruct)
+
+	// Sign response using server private key
+	hashResponse := crypto_utils.Hash(responseBits)
+	responseSig := crypto_utils.Sign(hashResponse, privateKey)
+
+	temp := struct {
+		Message   []byte
+		Signature []byte
+	}{
+		Message:   responseBits,
+		Signature: responseSig,
+	}
+	tempBytes, _ := json.Marshal(temp)
+
+	// Encrypt with sessionKey
+	encryptedResponse := crypto_utils.EncryptSK(tempBytes, sessionKey)
+
+	response.Val = encryptedResponse
+	response.Status = OK
 }
 
 // Input: none. Returns a response.
