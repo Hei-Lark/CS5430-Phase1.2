@@ -199,7 +199,7 @@ func doLogin(request *Request, response *Response) {
 	}
 
 	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using ks
-	decryptedMessage, err := crypto_utils.DecryptPK(encryptedRequest.FullEncryptedMessage, privateKey)
+	decryptedMessage, err := crypto_utils.DecryptSK(encryptedRequest.FullEncryptedMessage, sessionKey)
 	if err != nil {
 		response.Status = FAIL
 		response.Val = "Failed to decrypt message."
@@ -207,12 +207,12 @@ func doLogin(request *Request, response *Response) {
 	}
 
 	var message struct {
-		UID       string    `json:"UID"`
-		Command   Operation `json:"Command"`
-		Kc        []byte    `json:"Kc"`
-		Kds       []byte    `json:"Kds"`
-		Nonce     []byte    `json:"Nonce"`
-		Signature []byte    `json:"Signature"`
+		UID     string    `json:"UID"`
+		Command Operation `json:"Command"`
+		// Kc      []byte    `json:"Kc"`
+		Kds []byte `json:"Kds"`
+		// Nonce     []byte    `json:"Nonce"`
+		Signature []byte `json:"Signature"`
 	}
 	err = json.Unmarshal(decryptedMessage, &message)
 	if err != nil {
@@ -238,12 +238,12 @@ func doLogin(request *Request, response *Response) {
 	}
 
 	// Get Kc
-	KClientPublic, err := crypto_utils.BytesToPublicKey(message.Kc)
-	if err != nil {
-		response.Status = FAIL
-		response.Val = "Failed to convert Kds to public key."
-		return
-	}
+	// KClientPublic, err := crypto_utils.BytesToPublicKey(message.Kc)
+	// if err != nil {
+	// 	response.Status = FAIL
+	// 	response.Val = "Failed to convert Kds to public key."
+	// 	return
+	// }
 
 	// Store session details
 	sessionKey = KSession
@@ -253,11 +253,11 @@ func doLogin(request *Request, response *Response) {
 	responseStruct := struct {
 		UID     string
 		Command Operation
-		Nonce   []byte
+		// Nonce   []byte
 	}{
 		UID:     request.UID,
 		Command: LOGIN,
-		Nonce:   message.Nonce,
+		// Nonce:   message.Nonce,
 	}
 
 	responseBits, _ := json.Marshal(responseStruct)
@@ -276,7 +276,7 @@ func doLogin(request *Request, response *Response) {
 	tempBytes, _ := json.Marshal(temp)
 
 	// Encrypt with sessionKey
-	encryptedResponse := crypto_utils.EncryptPK(tempBytes, KClientPublic)
+	encryptedResponse := crypto_utils.EncryptSK(tempBytes, sessionKey)
 	response.Val = encryptedResponse
 	response.Status = OK
 }
@@ -322,7 +322,7 @@ func doLogout(request *Request, response *Response) {
 	var message struct {
 		UID     string    `json:"UID"`
 		Command Operation `json:"Command"`
-		Nonce   []byte    `json:"Nonce"`
+		// Nonce   []byte    `json:"Nonce"`
 	}
 
 	err = json.Unmarshal(decryptedMessage, &message)
@@ -347,14 +347,14 @@ func doLogout(request *Request, response *Response) {
 
 		//response to send back to the client
 		responseStruct := struct {
-			UID       string    `json:"UID"`
-			Command   Operation `json:"Command"`
-			Nonce     []byte    `json:"Nonce"`
-			Signature []byte    `json:"Signature"`
+			UID     string    `json:"UID"`
+			Command Operation `json:"Command"`
+			// Nonce     []byte    `json:"Nonce"`
+			Signature []byte `json:"Signature"`
 		}{
 			UID:     message.UID,
 			Command: LOGOUT,
-			Nonce:   message.Nonce,
+			// Nonce:   message.Nonce,
 		}
 
 		responseBytes, err := json.Marshal(responseStruct)

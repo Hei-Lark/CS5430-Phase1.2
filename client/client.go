@@ -86,21 +86,21 @@ func ProcessOp(request *Request) *Response {
 			EncryptedKcs := crypto_utils.EncryptPK(sessionKey, serverPublicKey)
 
 			// Generate nonce
-			nonce := crypto_utils.RandomBytes(4)
+			// nonce := crypto_utils.RandomBytes(4)
 
 			// Create message bits
 			messageStruct := struct {
 				UID     string
 				Command Operation
-				Kc      []byte
-				Kds     []byte
-				Nonce   []byte
+				// Kc      []byte
+				Kds []byte
+				// Nonce   []byte
 			}{
 				UID:     uid,
 				Command: LOGIN,
-				Kc:      crypto_utils.PublicKeyToBytes(clientPubKey),
-				Kds:     crypto_utils.PublicKeyToBytes(EncryptionVerificationKey),
-				Nonce:   nonce,
+				// Kc:      crypto_utils.PublicKeyToBytes(clientPubKey),
+				Kds: crypto_utils.PublicKeyToBytes(EncryptionVerificationKey),
+				// Nonce:   nonce,
 			}
 			messageBits, _ := json.Marshal(messageStruct)
 
@@ -119,7 +119,7 @@ func ProcessOp(request *Request) *Response {
 
 			// Encrypted with Kcs
 			messageAndSignature, _ := json.Marshal(messageAndSignatureStruct)
-			messageAndSigEncrypted := crypto_utils.EncryptPK(messageAndSignature, serverPublicKey)
+			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
 
 			// Construct final message: {Kcs}Ks, {(message, sig)}Kcs
 			finalStruct := struct {
@@ -154,16 +154,16 @@ func ProcessOp(request *Request) *Response {
 			}
 
 			// Generate nonce
-			nonce := crypto_utils.RandomBytes(4)
+			// nonce := crypto_utils.RandomBytes(4)
 
 			logoutMessageStruct := struct {
 				UID     string
 				Command Operation
-				Nonce   []byte
+				// Nonce   []byte
 			}{
 				UID:     uid,
 				Command: LOGOUT,
-				Nonce:   nonce,
+				// Nonce:   nonce,
 			}
 
 			messageBytes, _ := json.Marshal(logoutMessageStruct)
@@ -179,7 +179,7 @@ func ProcessOp(request *Request) *Response {
 				Signature: signature,
 			}
 			messageAndSignature, _ := json.Marshal(temp)
-			messageAndSigEncrypted := crypto_utils.EncryptPK(messageAndSignature, serverPublicKey)
+			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
 
 			finalStruct := struct {
 				FullEncryptedMessage []byte
@@ -239,7 +239,7 @@ func doOp(request *Request, response *Response) {
 		return
 	}
 
-	decryptedMessage, err := crypto_utils.DecryptPK(encryptedResponse.Message, clientPrivKey)
+	decryptedMessage, err := crypto_utils.DecryptSK(encryptedResponse.Message, sessionKey)
 	if err != nil {
 		response.Status = FAIL
 		response.Val = "Failed to decrypt server response."
