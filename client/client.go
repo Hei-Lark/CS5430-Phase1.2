@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -14,14 +15,18 @@ import (
 var name string
 var Requests chan NetworkData
 var Responses chan NetworkData
-var uid string // part 2
+var uid string                                        // part 2
+var sKey = []byte("12345678901234567890123456789012") // crypto_utils.NewSessionKey() // phase1： assume session key given by server, populate after logging in
 
 var serverPublicKey *rsa.PublicKey
 
 func init() {
+	fmt.Println("Session key: " + string(sKey))
 	name = uuid.NewString()
 	Requests = make(chan NetworkData)
 	Responses = make(chan NetworkData)
+
+	// ObtainServerPublicKey()
 }
 
 func ObtainServerPublicKey() {
@@ -37,6 +42,7 @@ func ObtainServerPublicKey() {
 
 func ProcessOp(request *Request) *Response {
 	response := &Response{Status: FAIL}
+	fmt.Println("client processOp")
 	if validateRequest(request) {
 		switch request.Op {
 		case LOGIN:
@@ -56,6 +62,7 @@ func ProcessOp(request *Request) *Response {
 		default:
 			// struct already default initialized to
 			// FAIL status
+			fmt.Println("client invalid failure")
 		}
 	}
 	response.UID = request.UID
@@ -81,7 +88,8 @@ func validateRequest(r *Request) bool {
 
 func doOp(request *Request, response *Response) {
 	requestBytes, _ := json.Marshal(request)
-	json.Unmarshal(sendAndReceive(NetworkData{Payload: requestBytes, Name: name}).Payload, &response)
+	fmt.Println("client send n recieve")
+	json.Unmarshal(sendAndReceive(NetworkData{Payload: crypto_utils.EncryptSK(requestBytes, sKey), Name: name}).Payload, &response)
 }
 
 func sendAndReceive(toSend NetworkData) NetworkData {

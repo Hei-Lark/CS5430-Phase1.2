@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -19,7 +21,8 @@ var kvstore map[string]interface{}
 var Requests chan NetworkData
 var Responses chan NetworkData
 
-var session string // part 2
+// var session string                      // part 2
+var sKey = []byte("12345678901234567890123456789012") // crypto_utils.NewSessionKey() // phase 1 to be populated by pKey login
 
 func init() {
 	privateKey = crypto_utils.NewPrivateKey()
@@ -51,11 +54,25 @@ func receiveThenSend() {
 // response. This method is invoked by the network.
 func process(requestData NetworkData) NetworkData {
 	var request Request
-	json.Unmarshal(requestData.Payload, &request)
 	var response Response
-	doOp(&request, &response)
+	var c, e = crypto_utils.DecryptSK(requestData.Payload, sKey)
+
+	fmt.Println("server decryption: " + string(c))
+
+	// if e is nil, fail
+	if e != nil {
+		// Implement fail!
+		fmt.Println("decode fail")
+		// json.Unmarshal(e, &request)
+		response.Status = FAIL
+	} else {
+		fmt.Println("decode ok")
+		doOp(&request, &response)
+		json.Unmarshal(c, &request)
+	}
 	responseBytes, _ := json.Marshal(response)
-	return NetworkData{Payload: responseBytes, Name: name}
+	fmt.Println("status is: " + string(response.Status))
+	return NetworkData{Payload: crypto_utils.EncryptSK(responseBytes, sKey), Name: name}
 }
 
 // Input: request from a client. Returns a response.
@@ -64,10 +81,11 @@ func process(requestData NetworkData) NetworkData {
 // operation.
 func doOp(request *Request, response *Response) {
 	response.Status = FAIL
-
-	if session == "" && request.Op == LOGIN {
+	fmt.Println("server doOp")
+	if request.Op == LOGIN { // len(sKey) == 0 &&
+		fmt.Println("server do login??")
 		doLogin(request, response)
-	} else if session == request.UID && session != "" {
+	} else if bytes.Equal([]byte(request.UID), sKey) && len(sKey) != 0 {
 		switch request.Op {
 		case NOOP:
 			// NOTHING
@@ -86,6 +104,7 @@ func doOp(request *Request, response *Response) {
 		default:
 			// struct already default initialized to
 			// FAIL status
+			fmt.Println("server doOp failure")
 		}
 	}
 }
@@ -152,10 +171,11 @@ func doCopy(request *Request, response *Response) {
 // u cannot be an empty string. If another session already
 // exists, then the status is FAIL.
 func doLogin(request *Request, response *Response) {
-	if session == "" {
-		session = request.UID
-		response.Status = OK
-	}
+	// if len(sKey) == 0 {
+	// 	response.Status = OK
+	// }
+	fmt.Println("server doLogin")
+	response.Status = OK
 }
 
 // Input: none. Returns a response.
@@ -163,6 +183,7 @@ func doLogin(request *Request, response *Response) {
 // session is returned to empty string. If the client is not
 // logged in, then the status is FAIL.
 func doLogout(request *Request, response *Response) {
-	session = ""
+	// sKey = []byte{}
+	fmt.Print("server doLogout")
 	response.Status = OK
 }
