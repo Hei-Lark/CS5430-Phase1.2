@@ -35,12 +35,12 @@ func init() {
 
 	// Generate signing keys
 	EncryptionSigningKey = crypto_utils.NewPrivateKey()
-	EncryptionVerificationKey = crypto_utils.NewPrivateKey()
+	EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
 
 	// Get server public key Ks
 	ObtainServerPublicKey()
 
-	// Generate session key Kcs
+	// Generate session key Kcs on startup
 	sessionKey = crypto_utils.NewSessionKey()
 
 }
@@ -61,56 +61,80 @@ func ProcessOp(request *Request) *Response {
 	if validateRequest(request) {
 		switch request.Op {
 		case LOGIN:
+
 			if uid == "" {
 				uid = request.UID
-
-				// Encrypt Kcs with Ks
-				EncryptedKcs := crypto_utils.EncryptPK(sessionKey, serverPublicKey)
-
-				// Generate nonce
-				nonce := crypto_utils.RandomBytes(4)
-
-				// Create message bits
-				messageStruct := struct {
-					ClientName string
-					UID        string
-					Command    Operation
-					Kds        []byte
-					Nonce      []byte
-				}{
-					ClientName: name,
-					UID:        uid,
-					Command:    LOGIN,
-					Kds:        crypto_utils.PublicKeyToBytes(EncryptionVerificationKey),
-					Nonce:      nonce,
-				}
-				messageBits, _ := json.Marshal(messageStruct)
-
-				// Create signature
-				hashMessage := crypto_utils.Hash(messageBits)
-				signature := crypto_utils.Sign(hashMessage, EncryptionSigningKey)
-
-				// Encrypt message with Kcs
-				finalMsgNotEncrypted := append(messageBits, signature...)
-				finalMsgEncrypted := crypto_utils.EncryptSK(finalMsgNotEncrypted, sessionKey)
-
-				// Form request
-				request.ClientName = name
-				request.EncryptedKcs = EncryptedKcs
-				request.EncryptedMessage = finalMsgEncrypted
-
-				doOp(request, response)
-
 			} else {
 				request.UID = uid
 			}
+
+			// Encrypt Kcs with Ks
+			EncryptedKcs := crypto_utils.EncryptPK(sessionKey, serverPublicKey)
+
+			// Generate nonce
+			nonce := crypto_utils.RandomBytes(4)
+
+			// Create message bits
+			messageStruct := struct {
+				UID     string
+				Command Operation
+				Kds     []byte
+				Nonce   []byte
+			}{
+				UID:     uid,
+				Command: LOGIN,
+				Kds:     crypto_utils.PublicKeyToBytes(EncryptionVerificationKey),
+				Nonce:   nonce,
+			}
+			messageBits, _ := json.Marshal(messageStruct)
+
+			// Create signature
+			hashMessage := crypto_utils.Hash(messageBits)
+			signature := crypto_utils.Sign(hashMessage, EncryptionSigningKey)
+
+			// Create (m, sig)Kcs
+			messageAndSignatureStruct := struct {
+				Message   []byte
+				Signature []byte
+			}{
+				Message:   messageBits,
+				Signature: signature,
+			}
+
+			// Encrypted with Kcs
+			messageAndSignature, _ := json.Marshal(messageAndSignatureStruct)
+			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
+
+			// Construct final message: {Kcs}Ks, {(message, sig)}Kcs
+			finalStruct := struct {
+				EncryptedKcs         []byte
+				FullEncryptedMessage []byte
+			}{
+				EncryptedKcs:         EncryptedKcs,
+				FullEncryptedMessage: messageAndSigEncrypted,
+			}
+
+			// Final Bytes
+			finalBytes, _ := json.Marshal(finalStruct)
+
+			// Construct Request
+			request := &Request{
+				Val: finalBytes,
+				Op:  LOGIN,
+				UID: uid,
+			}
+
+			doOp(request, response)
+
 		case CREATE, DELETE, READ, WRITE, COPY:
 			request.UID = uid
 			doOp(request, response)
 		case LOGOUT:
+
 			request.UID = uid
 			doOp(request, response)
 			uid = ""
+
 		default:
 			// struct already default initialized to
 			// FAIL status
