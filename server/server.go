@@ -52,11 +52,26 @@ func receiveThenSend() {
 // response. This method is invoked by the network.
 func process(requestData NetworkData) NetworkData {
 	var request Request
-	json.Unmarshal(requestData.Payload, &request)
 	var response Response
+
+	var c, e = crypto_utils.DecryptSK(requestData.Payload, sessionKey)
+
+	if e != nil {
+		json.Unmarshal(requestData.Payload, &request)
+	} else {
+		json.Unmarshal(c, &request)
+		doOp(&request, &response)
+	}
+
 	doOp(&request, &response)
 	responseBytes, _ := json.Marshal(response)
-	return NetworkData{Payload: responseBytes, Name: name}
+
+	if e != nil {
+		return NetworkData{Payload: responseBytes, Name: name}
+	} else {
+		return NetworkData{Payload: crypto_utils.EncryptSK(responseBytes, sessionKey), Name: name}
+	}
+
 }
 
 // Input: request from a client. Returns a response.
