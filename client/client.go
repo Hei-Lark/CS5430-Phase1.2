@@ -29,20 +29,6 @@ func init() {
 	Requests = make(chan NetworkData)
 	Responses = make(chan NetworkData)
 
-	// Generate pub/priv key pair
-	clientPrivKey = crypto_utils.NewPrivateKey()
-	clientPubKey = &clientPrivKey.PublicKey
-
-	// Generate signing keys
-	EncryptionSigningKey = crypto_utils.NewPrivateKey()
-	EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
-
-	// Get server public key Ks
-	ObtainServerPublicKey()
-
-	// Generate session key Kcs on startup
-	sessionKey = crypto_utils.NewSessionKey()
-
 }
 
 func ObtainServerPublicKey() {
@@ -67,6 +53,20 @@ func ProcessOp(request *Request) *Response {
 			} else {
 				request.UID = uid
 			}
+
+			// Generate pub/priv key pair
+			clientPrivKey = crypto_utils.NewPrivateKey()
+			clientPubKey = &clientPrivKey.PublicKey
+
+			// Generate signing keys
+			EncryptionSigningKey = crypto_utils.NewPrivateKey()
+			EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
+
+			// Get server public key Ks
+			ObtainServerPublicKey()
+
+			// Generate session key Kcs on startup
+			sessionKey = crypto_utils.NewSessionKey()
 
 			// Encrypt Kcs with Ks
 			EncryptedKcs := crypto_utils.EncryptPK(sessionKey, serverPublicKey)
