@@ -54,11 +54,10 @@ func process(requestData NetworkData) NetworkData {
 	var request Request
 	var response Response
 
-	var c, e = crypto_utils.DecryptSK(requestData.Payload, sessionKey)
-
-	if e != nil {
+	if len(sessionKey) == 0 {
 		json.Unmarshal(requestData.Payload, &request)
 	} else {
+		var c, _ = crypto_utils.DecryptSK(requestData.Payload, sessionKey)
 		json.Unmarshal(c, &request)
 		doOp(&request, &response)
 	}
@@ -66,7 +65,7 @@ func process(requestData NetworkData) NetworkData {
 	doOp(&request, &response)
 	responseBytes, _ := json.Marshal(response)
 
-	if e != nil {
+	if len(sessionKey) == 0 {
 		return NetworkData{Payload: responseBytes, Name: name}
 	} else {
 		return NetworkData{Payload: crypto_utils.EncryptSK(responseBytes, sessionKey), Name: name}

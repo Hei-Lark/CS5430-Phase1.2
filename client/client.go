@@ -29,20 +29,6 @@ func init() {
 	Requests = make(chan NetworkData)
 	Responses = make(chan NetworkData)
 
-	// Generate pub/priv key pair
-	clientPrivKey = crypto_utils.NewPrivateKey()
-	clientPubKey = &clientPrivKey.PublicKey
-
-	// Generate signing keys
-	EncryptionSigningKey = crypto_utils.NewPrivateKey()
-	EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
-
-	// Get server public key Ks
-	ObtainServerPublicKey()
-
-	// Generate session key Kcs on startup
-	sessionKey = crypto_utils.NewSessionKey()
-
 }
 
 func ObtainServerPublicKey() {
@@ -61,6 +47,20 @@ func ProcessOp(request *Request) *Response {
 	if validateRequest(request) {
 		switch request.Op {
 		case LOGIN:
+
+			// Generate pub/priv key pair
+			clientPrivKey = crypto_utils.NewPrivateKey()
+			clientPubKey = &clientPrivKey.PublicKey
+
+			// Generate signing keys
+			EncryptionSigningKey = crypto_utils.NewPrivateKey()
+			EncryptionVerificationKey = &EncryptionSigningKey.PublicKey
+
+			// Get server public key Ks
+			ObtainServerPublicKey()
+
+			// Generate session key Kcs on startup
+			sessionKey = crypto_utils.NewSessionKey()
 
 			if uid == "" {
 				uid = request.UID
