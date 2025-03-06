@@ -3,6 +3,7 @@ package server
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -53,16 +54,29 @@ func receiveThenSend() {
 func process(requestData NetworkData) NetworkData {
 	var request Request
 	var response Response
+	// var helper HelperStruct
+
+	fmt.Println("process start")
 
 	if len(sessionKey) == 0 {
+		fmt.Println("requestData.Payload")
+		fmt.Println(requestData.Payload)
 		json.Unmarshal(requestData.Payload, &request)
+
+		// fmt.Println("wrapper val")
+		// fmt.Println(wrapper.Data)
+		// json.Unmarshal(wrapper.Data, &request)
+
+		fmt.Println("request new")
+		fmt.Println(request)
+
+		doOp(&request, &response)
 	} else {
 		var c, _ = crypto_utils.DecryptSK(requestData.Payload, sessionKey)
 		json.Unmarshal(c, &request)
 		doOp(&request, &response)
 	}
 
-	doOp(&request, &response)
 	responseBytes, _ := json.Marshal(response)
 
 	if len(sessionKey) == 0 {
@@ -79,8 +93,10 @@ func process(requestData NetworkData) NetworkData {
 // operation.
 func doOp(request *Request, response *Response) {
 	response.Status = FAIL
+	fmt.Println("request doOP")
 
 	if session == "" && request.Op == LOGIN {
+		fmt.Println("LOGIN")
 		doLogin(request, response)
 	} else if session == request.UID && session != "" {
 		switch request.Op {
@@ -177,8 +193,11 @@ func doLogin(request *Request, response *Response) {
 		FullEncryptedMessage []byte `json:"FullEncryptedMessage"`
 	}
 
+	fmt.Println(request.UID)
+
 	encryptedBytes, ok := request.Val.([]byte)
 	if !ok {
+		fmt.Println("not ok")
 		response.Status = FAIL
 		response.Val = "Invalid data format."
 		return
@@ -197,6 +216,8 @@ func doLogin(request *Request, response *Response) {
 		response.Val = "Failed to decrypt session key."
 		return
 	}
+
+	sessionKey = KSession
 
 	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using ks
 	decryptedMessage, err := crypto_utils.DecryptSK(encryptedRequest.FullEncryptedMessage, sessionKey)
@@ -260,7 +281,12 @@ func doLogin(request *Request, response *Response) {
 		// Nonce:   message.Nonce,
 	}
 
-	responseBits, _ := json.Marshal(responseStruct)
+	responseBits, err := json.Marshal(responseStruct)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "cypher text empty probably"
+		return
+	}
 
 	// Sign response using server private key
 	hashResponse := crypto_utils.Hash(responseBits)
@@ -273,12 +299,19 @@ func doLogin(request *Request, response *Response) {
 		Message:   responseBits,
 		Signature: responseSig,
 	}
-	tempBytes, _ := json.Marshal(temp)
+	tempBytes, err := json.Marshal(temp)
+	if err != nil {
+		response.Status = FAIL
+		response.Val = "temp bytes error."
+		return
+	}
 
 	// Encrypt with sessionKey
 	encryptedResponse := crypto_utils.EncryptSK(tempBytes, sessionKey)
 	response.Val = encryptedResponse
 	response.Status = OK
+
+	fmt.Println("server")
 }
 
 // Input: none. Returns a response.

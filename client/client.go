@@ -3,6 +3,7 @@ package client
 import (
 	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"os"
 
 	"github.com/google/uuid"
@@ -140,6 +141,11 @@ func ProcessOp(request *Request) *Response {
 				UID: uid,
 			}
 
+			// custom struct
+
+			fmt.Println("req")
+			fmt.Println(request)
+
 			doOp(request, response)
 
 		case CREATE, DELETE, READ, WRITE, COPY:
@@ -225,7 +231,16 @@ func validateRequest(r *Request) bool {
 
 func doOp(request *Request, response *Response) {
 	requestBytes, _ := json.Marshal(request)
-	serverResponse := sendAndReceive(NetworkData{Payload: requestBytes, Name: name})
+
+	helper := &HelperStruct{
+		Data:    requestBytes,
+		Command: LOGIN,
+		UserID:  uid,
+	}
+
+	helperBytes, _ := json.Marshal(helper)
+
+	serverResponse := sendAndReceive(NetworkData{Payload: helperBytes, Name: name})
 
 	var encryptedResponse struct {
 		Message   []byte
@@ -238,6 +253,7 @@ func doOp(request *Request, response *Response) {
 		response.Val = "Failed to parse server response."
 		return
 	}
+	fmt.Println(encryptedResponse.Message)
 
 	decryptedMessage, err := crypto_utils.DecryptSK(encryptedResponse.Message, sessionKey)
 	if err != nil {

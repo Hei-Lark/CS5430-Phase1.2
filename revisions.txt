@@ -1,0 +1,57 @@
+Revisions from Phase 1 Part 1
+
+Here is our original protocol from Phase 1.1:
+LOGIN
+Client → Server: LOGIN {session-id, nonce, uid}Public Key of Server
+- Server decrypts using its private key
+Server → Client: {response values, nonce, uid}Public Key of  Client
+- Sends response, acknowledgment of logging in
+
+For non Login/Logout operations
+Client → Server: COMMAND {session-id, arguments, nonce, uid}Public Key of Server
+- If server can decrypt and get the right nonce value, then make changes and send a response
+Server → Client: {response values, nonce, uid}Public Key of  Client
+- Client should decrypt and verify nonce is same as the original sent value
+
+LOGOUT
+Client → Server: LOGOUT {session-id, nonce, uid}Public Key of Server
+- Client sends logout request to server
+- Server decrypts using its private key
+Server → Client: {nonce, uid} Public Key of  Client
+- Sends Response, Acknowledges LOGOUT
+- Session ID should be erased from all datastores
+
+
+We've changed it to a hybrid encryption scheme which uses asymmetric and symmetric key cryptography in order to improve overhead. 
+In addition, we added digital signatures in order to make our transmissions more secure. Here is an overview of our new protocol.
+
+LOGIN
+Client → Server: ServerPublicKey - Encrypt{Session Key}, SessionKey - Encrypt{Uid, LOGIN, VerificationKey, SigningKey - Sign{Hash(Uid, LOGIN)}}
+- Server uses its private key to get the session key, and uses the session key to decrypt the message and get the verification key. 
+The verification key can then be used to verify the signature.
+Server → Client: SessionKey - Encrypt{Uid, LOGIN, ServerPrivateKey -Encrypt{Hash(id, LOGIN)}}
+- also returns an OK status
+- Client uses session key to decrypt the message, and uses the server public key to verify the signature. 
+
+Other Commands
+Client → Server: Encrypt{Uid, OPERATION, VerificationKey, SigningKey - Sign{Hash(Uid, OEPRATION)}}
+- Server uses the session key to decrypt the message and get the verification key. The verification key can then be used to verify the signature.
+Server → Client: SessionKey - Encrypt{Uid, OPERATION, ServerPrivateKey -Encrypt{Hash(id, OPERATION)}}
+- also returns OK
+- Client uses session key to decrypt the message, and uses the server public key to verify the signature. 
+
+LOGOUT
+Client → Server: SessionKey - Encrypt{Uid, LOGOUT, SigningKey -Encrypt{Hash(id, LOGOUT)}}
+- Server uses the session key to decrypt the message and get the verification key. The verification key can then be used to verify the signature.
+Server → Client: SessionKey - Encrypt{Uid, LOGOUT, ServerPrivateKey -Encrypt{Hash(id, LOGOUT)}}
+- Client uses session key to decrypt the message, and uses the server public key to verify the signature. 
+- All client keys are reset, and session id,uid is erased from the system.
+
+Our system is now making use of digital signatures and session keys. For digital signatures, the client generates a private/public key that we've called the signing and verification 
+keys in order to sign messages. The client uses its signing key to sign messages and gives the verification key to the server, so that the server is able to verify the contents of 
+the message by comparing the contents of the signature to the unsigned message. In addition, the server uses its own private/public keys to sign its messages. 
+Since the client already has access to the server public key, the client can use that in order to verify the server's messages. 
+We also added this verification step to our protocol, as initially the client would not verify the response from the server in our phase 1.1 protocol. 
+Now the client verifies the response as well, giving the client extra security. Since we did not have digital signatures originally, our system had no way to make sure 
+that the client and server were receiving messages from the correct recipient. In addition, originally we used asymmetric cryptography, meaning that we 
+used client public/private and server public/private keys for all communication instead of using a session key. Using a session key has greatly reduced the overhead. 
