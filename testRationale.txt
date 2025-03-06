@@ -1,3 +1,12 @@
+
+
+!!! Below are the original test used and sumitted in phase0, it is also included here to 
+ensure that our system's functionalities remian exactly the same even after implementing
+encryption !!!
+
+The test result outputs with 0 at the end of the filename are what phase0 outputs are. Unfortunately
+since we could not get this system working, the current outputs are not quite right.
+
 The tests are split into two files, copy_test.txt and login_text.txt, one corresponding
 to each part of phase0. 
 
