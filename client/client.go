@@ -141,8 +141,6 @@ func ProcessOp(request *Request) *Response {
 				UID: uid,
 			}
 
-			// custom struct
-
 			fmt.Println("req")
 			fmt.Println(request)
 
@@ -174,6 +172,7 @@ func ProcessOp(request *Request) *Response {
 
 			messageBytes, _ := json.Marshal(logoutMessageStruct)
 
+			// Create signature
 			messageHash := crypto_utils.Hash(messageBytes)
 			signature := crypto_utils.Sign(messageHash, EncryptionSigningKey)
 
@@ -184,6 +183,8 @@ func ProcessOp(request *Request) *Response {
 				Message:   messageBytes,
 				Signature: signature,
 			}
+
+			// concatenate message + signature
 			messageAndSignature, _ := json.Marshal(temp)
 			messageAndSigEncrypted := crypto_utils.EncryptSK(messageAndSignature, sessionKey)
 
@@ -195,6 +196,7 @@ func ProcessOp(request *Request) *Response {
 
 			finalBytes, _ := json.Marshal(finalStruct)
 
+			// set Val field to byte array
 			request := &Request{
 				Val: finalBytes,
 				Op:  LOGOUT,
@@ -232,6 +234,8 @@ func validateRequest(r *Request) bool {
 func doOp(request *Request, response *Response) {
 	requestBytes, _ := json.Marshal(request)
 
+	// Force []byte type on the requestBytes
+	// Prevent unmarshaling problems
 	helper := &HelperStruct{
 		Data:    requestBytes,
 		Command: LOGIN,

@@ -195,6 +195,7 @@ func doLogin(request *Request, response *Response) {
 
 	fmt.Println(request.UID)
 
+	// Since unmarshaling requires a []byte, we need to convert request.Val to this type
 	encryptedBytes, ok := request.Val.([]byte)
 	if !ok {
 		fmt.Println("not ok")
@@ -203,6 +204,7 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
+	// Unmarshal into our struct, so we can access the session key and message separately
 	err := json.Unmarshal(encryptedBytes, &encryptedRequest)
 	if err != nil {
 		response.Status = FAIL
@@ -210,6 +212,7 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
+	// Decrypt to accquire session key for future operations
 	KSession, err := crypto_utils.DecryptPK(encryptedRequest.EncryptedKcs, privateKey)
 	if err != nil {
 		response.Status = FAIL
@@ -217,9 +220,10 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
+	// set our local key to the obtain session key
 	sessionKey = KSession
 
-	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using ks
+	// Decrypt {C, U, LOGIN, Kds, nonce, sig} using Kcs
 	decryptedMessage, err := crypto_utils.DecryptSK(encryptedRequest.FullEncryptedMessage, sessionKey)
 	if err != nil {
 		response.Status = FAIL
@@ -227,6 +231,7 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
+	// Obtain individual fields to get signature
 	var message struct {
 		UID     string    `json:"UID"`
 		Command Operation `json:"Command"`
@@ -250,6 +255,7 @@ func doLogin(request *Request, response *Response) {
 		return
 	}
 
+	// Rehash to compare hashes to verify message
 	hashMessage := crypto_utils.Hash(decryptedMessage)
 	validSignature := crypto_utils.Verify(message.Signature, hashMessage, verificationKey)
 	if !validSignature {
@@ -338,6 +344,7 @@ func doLogout(request *Request, response *Response) {
 		return
 	}
 
+	// Obtain signature and message separately, since sig needs to be verified
 	err := json.Unmarshal(encryptedRequestBytes, &messageAndSignature)
 	if err != nil {
 		response.Status = FAIL
@@ -345,6 +352,7 @@ func doLogout(request *Request, response *Response) {
 		return
 	}
 
+	// Use session key to obtain individual fields of the message and the signature
 	decryptedMessage, err := crypto_utils.DecryptSK(messageAndSignature.Message, sessionKey)
 	if err != nil {
 		response.Status = FAIL
@@ -358,6 +366,7 @@ func doLogout(request *Request, response *Response) {
 		// Nonce   []byte    `json:"Nonce"`
 	}
 
+	// use verification key to verify the signature and compare the contents against unsigned message portion
 	err = json.Unmarshal(decryptedMessage, &message)
 	if err != nil {
 		response.Status = FAIL
