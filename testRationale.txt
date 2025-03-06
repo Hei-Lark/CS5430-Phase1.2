@@ -1,3 +1,12 @@
+To test our new code, we envision creating man-in-the-middle attacks. Unfortunately, our 
+attempt to create this located in tests/test.go doesn't work. However, we would try to replicate
+and test our code expecting failure in these ways:
+1. Send gibberish / completely garbage messages to both the client and server
+2. Send symmetric encryption messages to the server with the wrong digital signature or nonce
+3. Send asymmetric encrpyiton message to server/client with the wrong public key, wrong signing
+and verification, nonce
+4. Splice together existing messages in different ways and send them to client/server
+5. See if given the client name, Trudy can login and act as the client to the server
 
 
 !!! Below are the original test used and sumitted in phase0, it is also included here to 
