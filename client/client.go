@@ -237,9 +237,9 @@ func doOp(request *Request, response *Response) {
 	// Force []byte type on the requestBytes
 	// Prevent unmarshaling problems
 	helper := &HelperStruct{
-		Data:    requestBytes,
-		Command: LOGIN,
-		UserID:  uid,
+		Val: requestBytes,
+		Op:  LOGIN,
+		UID: uid,
 	}
 
 	helperBytes, _ := json.Marshal(helper)

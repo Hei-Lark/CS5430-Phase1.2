@@ -54,18 +54,22 @@ func receiveThenSend() {
 func process(requestData NetworkData) NetworkData {
 	var request Request
 	var response Response
-	// var helper HelperStruct
+	var helper HelperStruct
 
 	fmt.Println("process start")
 
 	if len(sessionKey) == 0 {
 		fmt.Println("requestData.Payload")
 		fmt.Println(requestData.Payload)
-		json.Unmarshal(requestData.Payload, &request)
 
-		// fmt.Println("wrapper val")
-		// fmt.Println(wrapper.Data)
-		// json.Unmarshal(wrapper.Data, &request)
+		// unmarshal requestdata.payload into helperstruct type
+		json.Unmarshal(requestData.Payload, &helper)
+
+		fmt.Println("helper.Data")
+		fmt.Println(helper.Val)
+
+		// unmarshal data field containing our bytes into request to be passed
+		json.Unmarshal(helper.Val, &request)
 
 		fmt.Println("request new")
 		fmt.Println(request)
@@ -192,8 +196,6 @@ func doLogin(request *Request, response *Response) {
 		EncryptedKcs         []byte `json:"EncryptedKcs`
 		FullEncryptedMessage []byte `json:"FullEncryptedMessage"`
 	}
-
-	fmt.Println(request.UID)
 
 	// Since unmarshaling requires a []byte, we need to convert request.Val to this type
 	encryptedBytes, ok := request.Val.([]byte)

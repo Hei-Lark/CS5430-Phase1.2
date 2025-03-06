@@ -1,8 +1,9 @@
 package types
 
 // to ensure correct JSON unmarshaling for []byte type
+// helper struct that can be used to ensure that the byte arrays remain byte arrays during unmarshaling
 type HelperStruct struct {
-	Data    []byte    `json:"data"`
-	Command Operation `json: "command"`
-	UserID  string    `json:"userid`
+	Val []byte    `json:"val"`
+	Op  Operation `json: "op"`
+	UID string    `json:"uid`
 }
